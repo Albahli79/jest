@@ -275,3 +275,43 @@ Jest is [MIT licensed](./LICENSE).
 ## Copyright
 
 Copyright Contributors to the Jest project.
+
+## Order Parts and Items System
+
+Backend: FastAPI + SQLModel, JWT auth, RBAC, WebSocket notifications.
+Frontend: Static HTML/JS minimal client.
+
+### Quickstart
+
+1. Python env
+```
+python -m venv .venv && source .venv/bin/activate
+```
+2. Install
+```
+pip install -r server/requirements.txt
+```
+3. Run DB migrations (auto-create) and seed users
+```
+python -m server.seed
+```
+4. Start API
+```
+uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
+```
+5. Open UI
+```
+python -m http.server 5173 --directory web
+```
+Then open http://localhost:5173 in your browser.
+
+### Default Users
+- admin / admin123 (ADMIN)
+- mcadmin / mc123 (MATERIAL_CONTROL)
+- warehouse1 / wh123 (WAREHOUSE)
+- mediator1 / med123 (MEDIATOR)
+- requester1 / req123 (REQUESTER)
+
+### Notes
+- Replace SQLite with Postgres in production. Update `server/database.py`.
+- Integrate real email/SMS providers in `server/notifications.py`.

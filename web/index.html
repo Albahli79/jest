@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order Parts and Items</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+    input, select, button { padding: 8px; margin: 4px 0; width: 100%; }
+    .row { display: flex; gap: 16px; }
+    .col { flex: 1; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Order Parts and Items</h1>
+
+  <div class="card" id="loginCard">
+    <h3>Login</h3>
+    <input id="username" placeholder="username" />
+    <input id="password" placeholder="password" type="password" />
+    <button onclick="login()">Login</button>
+    <div id="loginMsg"></div>
+  </div>
+
+  <div class="card hidden" id="orderCard">
+    <h3>Create Order</h3>
+    <div class="row">
+      <div class="col">
+        <input id="aircraft_id" placeholder="aircraft_id" />
+        <input id="job_order_id" placeholder="job_order_id" />
+      </div>
+      <div class="col">
+        <input id="part_id" placeholder="part_id" />
+        <input id="quantity" placeholder="quantity" />
+      </div>
+    </div>
+    <input id="request_location" placeholder="request_location" />
+    <button onclick="createOrder()">Submit</button>
+    <div id="orderMsg"></div>
+  </div>
+
+  <div class="card hidden" id="ordersListCard">
+    <h3>My Orders</h3>
+    <button onclick="loadOrders()">Refresh</button>
+    <ul id="orders"></ul>
+  </div>
+
+  <script>
+    let token = null;
+    let me = null;
+    let ws = null;
+
+    async function login() {
+      const form = new URLSearchParams();
+      form.append('username', document.getElementById('username').value);
+      form.append('password', document.getElementById('password').value);
+      const res = await fetch('http://localhost:8000/api/users/token', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('loginMsg').innerText = data.detail || 'Login failed'; return; }
+      token = data.access_token;
+      const meRes = await fetch('http://localhost:8000/api/users/me', { headers: { Authorization: `Bearer ${token}` }});
+      me = await meRes.json();
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('orderCard').classList.remove('hidden');
+      document.getElementById('ordersListCard').classList.remove('hidden');
+      // websocket
+      ws = new WebSocket(`ws://localhost:8000/ws/notify/${me.username}`);
+      ws.onmessage = (evt) => console.log('WS', evt.data);
+      loadOrders();
+    }
+
+    async function createOrder() {
+      const payload = {
+        aircraft_id: parseInt(document.getElementById('aircraft_id').value),
+        job_order_id: parseInt(document.getElementById('job_order_id').value),
+        part_id: parseInt(document.getElementById('part_id').value),
+        quantity: parseInt(document.getElementById('quantity').value),
+        request_location: document.getElementById('request_location').value,
+      };
+      const res = await fetch('http://localhost:8000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      document.getElementById('orderMsg').innerText = res.ok ? `Created: ${data.receipt_number}` : (data.detail || 'Failed');
+      loadOrders();
+    }
+
+    async function loadOrders() {
+      const res = await fetch('http://localhost:8000/api/orders', { headers: { Authorization: `Bearer ${token}` }});
+      const list = await res.json();
+      const ul = document.getElementById('orders');
+      ul.innerHTML = '';
+      list.forEach(o => {
+        const li = document.createElement('li');
+        li.innerText = `${o.receipt_number} | ${o.status} | qty=${o.quantity} | part=${o.part_id}`;
+        ul.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
